@@ -2,10 +2,13 @@ package com.example.itpm_app.activities;
 
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.icu.text.CaseMap;
 import android.os.Bundle;
 
 import com.example.itpm_app.R;
+import com.example.itpm_app.databases.ITPMDataOpenHelper;
 import com.example.itpm_app.pojo.TitleDataItem;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
@@ -103,14 +106,39 @@ public class MainActivity extends AppCompatActivity {
         mAdapter.clear();
         // 新しいデータをアダプターに設定する
 //        List<String> dataList = Arrays.asList("ホーム", "事業内容", "企業情報", "採用情報", "お問い合わせ");
-        List<TitleDataItem> dataList = Arrays.asList(
-                new TitleDataItem(1, "ホーム"),
-                new TitleDataItem(2, "事業内容"),
-                new TitleDataItem(3, "企業情報"),
-                new TitleDataItem(4, "採用情報"),
-                new TitleDataItem(5, "お問い合わせ")
+//        List<TitleDataItem> dataList = Arrays.asList(
+//                new TitleDataItem(1, "ホーム"),
+//                new TitleDataItem(2, "事業内容"),
+//                new TitleDataItem(3, "企業情報"),
+//                new TitleDataItem(4, "採用情報"),
+//                new TitleDataItem(5, "お問い合わせ")
+//        );
+        // 表示に使うデータを入れるリスト
+        List<TitleDataItem> itemList = new ArrayList<>();
+        // 読み書き用のデータベースインスタンスを取得する
+        SQLiteDatabase db = new ITPMDataOpenHelper(this).getWritableDatabase();
+        // データベースから欲しいデータのカーソルを取り出す
+        Cursor cursor = db.query(
+                ITPMDataOpenHelper.TABLE_NAME,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
         );
-        mAdapter.addAll(dataList);
+        // カーソルを使ってデータを取り出す
+        while (cursor.moveToNext()) {
+            int id = cursor.getInt(cursor.getColumnIndex(ITPMDataOpenHelper._ID));
+            String title = cursor.getString(cursor.getColumnIndex(ITPMDataOpenHelper.COLUMN_TITLE));
+            itemList.add(new TitleDataItem(id, title));
+        }
+        // カーソルを閉じる
+        cursor.close();
+        // データベースを閉じる
+        db.close();
+        // 新しいデータをアダプターに設定する
+        mAdapter.addAll(itemList);
         // アダプターにデータが変更されたことを通知する
         mAdapter.notifyDataSetChanged();
     }
