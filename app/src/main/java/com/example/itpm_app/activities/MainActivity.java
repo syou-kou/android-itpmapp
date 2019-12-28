@@ -64,7 +64,7 @@ public class MainActivity extends AppCompatActivity {
 //                Log.d(MainActivity.class.getSimpleName(), position + "番目のリストアイテムが押されました");
 //                Intent intent = EditActivity.createIntent(MainActivity.this, String.valueOf(adapterView.getItemAtPosition(position)));
                 TitleDataItem item = (TitleDataItem)adapterView.getItemAtPosition(position);
-                Intent intent = EditActivity.createIntent(MainActivity.this, item.getTitle());
+                Intent intent = EditActivity.createIntent(MainActivity.this, item.getId(), item.getTitle());
                 startActivity(intent);
             }
         });
@@ -76,8 +76,16 @@ public class MainActivity extends AppCompatActivity {
 //                String title = String.valueOf(adapterView.getItemAtPosition(position));
 //                mAdapter.remove(title);
 //                Toast.makeText(MainActivity.this, title + "を削除しました", Toast.LENGTH_SHORT).show();
+//                mAdapter.remove(item);
                 TitleDataItem item = (TitleDataItem)adapterView.getItemAtPosition(position);
-                mAdapter.remove(item);
+                // 1. データベースのインスタンスを取得する
+                SQLiteDatabase db = new ITPMDataOpenHelper(MainActivity.this).getWritableDatabase();
+                // 2. データベースからデータを削除する
+                db.delete(ITPMDataOpenHelper.TABLE_NAME, ITPMDataOpenHelper._ID + "=" + item.getId(), null);
+                // 3. データベースを閉じる
+                db.close();
+                // 4. 画面表示を更新する
+                displayDataList();
                 Toast.makeText(MainActivity.this, item.getTitle() + "を削除しました。", Toast.LENGTH_SHORT).show();
                 return true;
             }
