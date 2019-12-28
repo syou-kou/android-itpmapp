@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.icu.text.CaseMap;
+import android.os.AsyncTask;
 import android.os.Bundle;
 
 import com.example.itpm_app.R;
@@ -37,6 +38,10 @@ import java.util.Arrays;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
+
+    interface OnAllDataLoadListener {
+        void onSuccess(List<TitleDataItem> itemList);
+    }
 
     private ListView mListView;
 //    private ArrayAdapter<String> mAdapter;
@@ -77,7 +82,7 @@ public class MainActivity extends AppCompatActivity {
 //                mAdapter.remove(title);
 //                Toast.makeText(MainActivity.this, title + "を削除しました", Toast.LENGTH_SHORT).show();
 //                mAdapter.remove(item);
-                TitleDataItem item = (TitleDataItem)adapterView.getItemAtPosition(position);
+                final TitleDataItem item = (TitleDataItem)adapterView.getItemAtPosition(position);
                 // 1. データベースのインスタンスを取得する
                 SQLiteDatabase db = new ITPMDataOpenHelper(MainActivity.this).getWritableDatabase();
                 // 2. データベースからデータを削除する
@@ -85,8 +90,15 @@ public class MainActivity extends AppCompatActivity {
                 // 3. データベースを閉じる
                 db.close();
                 // 4. 画面表示を更新する
-                displayDataList();
-                Toast.makeText(MainActivity.this, item.getTitle() + "を削除しました。", Toast.LENGTH_SHORT).show();
+                AllDataLoadTask task = new AllDataLoadTask();
+                task.setListener(new OnAllDataLoadListener() {
+                    @Override
+                    public void onSuccess(List<TitleDataItem> itemList) {
+                        displayDataList(itemList);
+                        Toast.makeText(MainActivity.this, item.getTitle() + "を削除しました。", Toast.LENGTH_SHORT).show();
+                    }
+                });
+                task.execute();
                 return true;
             }
         });
@@ -104,47 +116,20 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // リスト表示
-        displayDataList();
+        AllDataLoadTask task = new AllDataLoadTask();
+        task.setListener(new OnAllDataLoadListener() {
+            @Override
+            public void onSuccess(List<TitleDataItem> itemList) {
+                displayDataList(itemList);
+            }
+        });
+        task.execute();
     }
 
     // リスト表示用メソッド
-    private void displayDataList() {
+    private void displayDataList(List<TitleDataItem> itemList) {
         // アダプター内のデータをリセットする
         mAdapter.clear();
-        // 新しいデータをアダプターに設定する
-//        List<String> dataList = Arrays.asList("ホーム", "事業内容", "企業情報", "採用情報", "お問い合わせ");
-//        List<TitleDataItem> dataList = Arrays.asList(
-//                new TitleDataItem(1, "ホーム"),
-//                new TitleDataItem(2, "事業内容"),
-//                new TitleDataItem(3, "企業情報"),
-//                new TitleDataItem(4, "採用情報"),
-//                new TitleDataItem(5, "お問い合わせ")
-//        );
-        // 表示に使うデータを入れるリスト
-        List<TitleDataItem> itemList = new ArrayList<>();
-        // 読み書き用のデータベースインスタンスを取得する
-        SQLiteDatabase db = new ITPMDataOpenHelper(this).getWritableDatabase();
-        // データベースから欲しいデータのカーソルを取り出す
-        Cursor cursor = db.query(
-                ITPMDataOpenHelper.TABLE_NAME,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-        );
-        // カーソルを使ってデータを取り出す
-        while (cursor.moveToNext()) {
-            int id = cursor.getInt(cursor.getColumnIndex(ITPMDataOpenHelper._ID));
-            String title = cursor.getString(cursor.getColumnIndex(ITPMDataOpenHelper.COLUMN_TITLE));
-            itemList.add(new TitleDataItem(id, title));
-        }
-        // カーソルを閉じる
-        cursor.close();
-        // データベースを閉じる
-        db.close();
         // 新しいデータをアダプターに設定する
         mAdapter.addAll(itemList);
         // アダプターにデータが変更されたことを通知する
@@ -194,6 +179,53 @@ public class MainActivity extends AppCompatActivity {
 
             return convertView;
         }
+    }
 
+    private class AllDataLoadTask extends AsyncTask<Void, Void, List<TitleDataItem>> {
+
+        private OnAllDataLoadListener listener;
+
+        @Override
+        protected List<TitleDataItem> doInBackground(Void... voids) {
+            // データベースから表示データを読み込む
+            // 表示に使うデータを入れるリスト
+            List<TitleDataItem> itemList = new ArrayList<>();
+            // 読み書き用のデータベースインスタンスを取得する
+            SQLiteDatabase db = new ITPMDataOpenHelper(MainActivity.this).getWritableDatabase();
+            // データベースから欲しいデータのカーソルを取り出す
+            Cursor cursor = db.query(
+                    ITPMDataOpenHelper.TABLE_NAME,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+            );
+            // カーソルを使ってデータを取り出す
+            while (cursor.moveToNext()) {
+                int id = cursor.getInt(cursor.getColumnIndex(ITPMDataOpenHelper._ID));
+                String title = cursor.getString(cursor.getColumnIndex(ITPMDataOpenHelper.COLUMN_TITLE));
+                itemList.add(new TitleDataItem(id, title));
+            }
+            // カーソルを閉じる
+            cursor.close();
+            // データベースを閉じる
+            db.close();
+
+            return itemList;
+        }
+
+        @Override
+        protected void onPostExecute(List<TitleDataItem> titleDataItems) {
+            // リストの表示を更新する
+            if (listener != null) {
+                listener.onSuccess(titleDataItems);
+            }
+        }
+
+        void setListener(OnAllDataLoadListener listener) {
+            this.listener = listener;
+        }
     }
 }
